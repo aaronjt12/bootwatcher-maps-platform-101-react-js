@@ -1,4 +1,4 @@
-/**
+/*This is my app.tsx file. make the changes to this file /**
  * Copyright 2024 Google LLC
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +14,41 @@
  * limitations under the License.
 */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from "react-dom/client";
+import { APIProvider, Map, MapCameraChangedEvent } from '@vis.gl/react-google-maps';
 
-const App = () => (<h1>Hello, world!</h1>);
+const App = () => {
+  const [userLocation, setUserLocation] = useState({ lat: -33.860664, lng: 151.208138 }); // Default to Sydney
+  
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+        },
+        (error) => {
+          console.error('Error getting user location:', error);
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported by this browser.');
+    }
+  }, []);
+  
+  return (
+    <APIProvider apiKey={"AIzaSyDYlpL4UYttKRN8xVCgGRl2-ItoMOXRKlo"} onLoad={() => console.log('Maps API has loaded.')}>
+      <Map
+        defaultZoom={13}
+        center={userLocation} // Dynamically set user location
+        onCameraChanged={(ev: MapCameraChangedEvent) =>
+          console.log('camera changed:', ev.detail.center, 'zoom:', ev.detail.zoom)
+        }>
+      </Map>
+    </APIProvider>
+  );
+};
 
 const root = createRoot(document.getElementById('app'));
 root.render(<App />);
