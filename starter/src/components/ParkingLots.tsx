@@ -1,11 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { AdvancedMarker, Pin, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import React, { useEffect, useState,useRef, useCallback } from 'react';
+// import { Circle } from './circle';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import SubscribeForm from './SubscribeForm'; // Import SubscribeForm
-import { sendNotificationToLotSubscribers } from './MessagingService'; // Import MessagingService
-import Popup from './PopupComponent'; // Adjust the path as necessary based on your file structure
-
-
 // Define the Poi type
 type Poi = {
   key: string;
@@ -13,11 +9,10 @@ type Poi = {
     lat: number;
     lng: number;
   };
-  name?: string; // Add this to store parking lot names
 };
 
 // ParkingLots component that fetches nearby parking lots
-const ParkingLots = ({ userLocation }) => {
+const ParkingLots = ({userLocation}) => {
   const map = useMap();
   const placesLib = useMapsLibrary('places');
   const [parkingLots, setParkingLots] = useState<Poi[]>([]);
@@ -27,30 +22,107 @@ const ParkingLots = ({ userLocation }) => {
 
     const svc = new placesLib.PlacesService(map);
 
-    const location = new window.google.maps.LatLng(userLocation.lat, userLocation.lng);
+    // Define the location (latitude and longitude)
+    const location = new window.google.maps.LatLng(userLocation.lat, userLocation.lng); // Example: New York City (lat, lng)
     const request = {
       location,
-      radius: 3000,
-      type: 'parking',
+      radius: 3000, // Search within 500 meters
+      type: 'parking', // Search for parking lots
     };
 
+    // Perform the nearby search
     svc.nearbySearch(request, (results, status) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-        const locations: Poi[] = results.map((lot) => ({
-          key: lot.place_id,
+        // Map the results to create the array of locations
+        const locations: Poi[] = results.map((lot, index) => ({
+          key: lot.place_id, // You can use a unique property like place_id as the key
           location: {
             lat: lot.geometry.location.lat(),
             lng: lot.geometry.location.lng(),
           },
-          name: lot.name, // Store the parking lot name
         }));
-        setParkingLots(locations);
+        
+        setParkingLots(locations); // Store the locations in the state
       } else {
         console.error('Nearby search failed:', status);
       }
     });
   }, [placesLib, map]);
 
-  return <PoiMarkers pois={parkingLots} />;
+  return (
+      <PoiMarkers pois={parkingLots} />
+  );
 };
 
+// PoiMarkers component to render the markers
+const PoiMarkers = (props: { pois: Poi[] }) => {
+  const map = useMap();
+  const [markers, setMarkers] = useState<{ [key: string]: google.maps.Marker }>({});
+  const clusterer = useRef<MarkerClusterer | null>(null);
+  const [circleCenter, setCircleCenter] = useState<google.maps.LatLng | null>(null);
+
+  const handleClick = useCallback((ev: google.maps.MapMouseEvent) => {
+    if (!map) return;
+    if (!ev.latLng) return;
+    console.log('Marker clicked:', ev.latLng.toString());
+    map.panTo(ev.latLng);
+    setCircleCenter(ev.latLng);
+  });
+
+  // Initialize MarkerClusterer, if the map has changed
+  useEffect(() => {
+    if (!map) return;
+    if (!clusterer.current) {
+      clusterer.current = new MarkerClusterer({ map });
+    }
+  }, [map]);
+
+  // Update markers when the markers array changes
+  useEffect(() => {
+    clusterer.current?.clearMarkers();
+    clusterer.current?.addMarkers(Object.values(markers));
+  }, [markers]);
+
+  const setMarkerRef = (marker: google.maps.Marker | null, key: string) => {
+    if (marker && markers[key]) return;
+    if (!marker && !markers[key]) return;
+
+    setMarkers((prev) => {
+      if (marker) {
+        return { ...prev, [key]: marker };
+      } else {
+        const newMarkers = { ...prev };
+        delete newMarkers[key];
+        return newMarkers;
+      }
+    });
+  };
+
+  return (
+    <>
+      {/* <Circle
+        radius={800}
+        center={circleCenter}
+        strokeColor="#0c4cb3"
+        strokeOpacity={1}
+        strokeWeight={3}
+        fillColor="#3b82f6"
+        fillOpacity={0.3}
+      /> */}
+      {props.pois.map((poi: Poi) => (
+        <AdvancedMarker
+          key={poi.key}
+          position={poi.location}
+          ref={(marker) => setMarkerRef(marker, poi.key)}
+          clickable={true}
+          onClick={handleClick}
+        >
+          <img src={'/public/images/parking_7723653.png'} width={34} height={34} title="Parking lots" />
+
+        </AdvancedMarker>
+      ))}
+    </>
+  );
+};
+
+export default ParkingLots;
