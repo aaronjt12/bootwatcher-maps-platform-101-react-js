@@ -53,7 +53,7 @@ const ParkingLots = ({userLocation}) => {
       <PoiMarkers pois={parkingLots} />
   );
 };
-
+//push to server
 // PoiMarkers component to render the markers
 const PoiMarkers = (props: { pois: Poi[] }) => {
   const map = useMap();
